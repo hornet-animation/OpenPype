@@ -19,7 +19,6 @@ def get_thumbnail_binary(thumbnail_entity, thumbnail_type, dbcon=None):
     resolvers = sorted(resolvers, key=lambda cls: cls.priority)
     if dbcon is None:
         dbcon = legacy_io
-    print(resolvers)
     for Resolver in resolvers:
         available_types = Resolver.thumbnail_types
         if (
@@ -85,8 +84,6 @@ class PathThumbnail(object):
         return self._log
 
     def process(self, thumbnail_entity, thumbnail_type):
-        self.log.debug("MY RESOLVER WORKS ?")
-        print("fuuuuu")
         filepath = thumbnail_entity['data'].get('path')
         if not os.path.exists(filepath):
             self.log.warning("File does not exist \"{0}\"".format(filepath))
@@ -105,6 +102,7 @@ class TemplateResolver(ThumbnailResolver):
     def process(self, thumbnail_entity, thumbnail_type):
 
         if not os.environ.get("AVALON_THUMBNAIL_ROOT"):
+            self.log.warning("No Thumbnail Root Set")
             return
 
         template = thumbnail_entity["data"].get("template")
@@ -123,6 +121,7 @@ class TemplateResolver(ThumbnailResolver):
         template_data = copy.deepcopy(
             thumbnail_entity["data"].get("template_data") or {}
         )
+        ext = template_data['ext'][1:] if template_data['ext'].startswith('.') else template_data['ext']
         template_data.update({
             "_id": str(thumbnail_entity["_id"]),
             "thumbnail_type": thumbnail_type,
@@ -130,7 +129,8 @@ class TemplateResolver(ThumbnailResolver):
             "project": {
                 "name": project["name"],
                 "code": project["data"].get("code")
-            }
+            },
+            'ext': ext
         })
 
         try:
@@ -169,6 +169,6 @@ def register_thumbnail_resolver_path(path):
     register_plugin_path(ThumbnailResolver, path)
 
 
+register_thumbnail_resolver(PathThumbnail)
 register_thumbnail_resolver(TemplateResolver)
 register_thumbnail_resolver(BinaryThumbnail)
-register_thumbnail_resolver(PathThumbnail)

@@ -21,12 +21,38 @@ class ExtractThumbnail(openpype.api.Extractor):
 
     label = "Thumbnail"
     hosts = ["maya"]
-    families = ["review"]
+    families = ["pointcache",
+                "camera",
+                "animation",
+                "model",
+                "mayaAscii",
+                "setdress",
+                "layout",
+                "ass",
+                "vdbcache",
+                "scene",
+                "render",
+                "prerender",
+                "review",
+                "rig",
+                "look",
+                "yetiRig",
+                "yeticache",
+                "fbx"
+                ]
+    optional = True
 
     def process(self, instance):
         self.log.info("Extracting capture..")
 
-        camera = instance.data['review_camera']
+        if 'review_camera' in instance.data.keys():
+            camera = instance.data['review_camera']
+        else:
+            pan = cmds.getPanel(withFocus=True)
+            if not pan or not 'modelPanel' in pan:
+                pan = cmds.getPanel(type='modelPanel')[-1]
+            camera = pm.windows.modelPanel(pan, query=True, camera=True)
+        camera = cmds.duplicate(camera)[0]
 
         capture_preset = ""
         capture_preset = (
@@ -46,8 +72,8 @@ class ExtractThumbnail(openpype.api.Extractor):
         # preset["off_screen"] =  False
 
         preset['camera'] = camera
-        preset['start_frame'] = instance.data["frameStart"]
-        preset['end_frame'] = instance.data["frameStart"]
+        preset['start_frame'] = instance.data.get('frameStart', cmds.currentTime(query=True))
+        preset['end_frame'] = instance.data.get('frameStart', cmds.currentTime(query=True))
         preset['camera_options'] = {
             "displayGateMask": False,
             "displayResolution": False,
@@ -94,14 +120,14 @@ class ExtractThumbnail(openpype.api.Extractor):
             if not override_viewport_options:
                 panel_preset = capture.parse_active_view()
                 preset.update(panel_preset)
-
+            cmds.viewFit(camera,all=True)
             path = capture.capture(**preset)
             playblast = self._fix_playblast_output_path(path)
 
         _, thumbnail = os.path.split(playblast)
 
         self.log.info("file list  {}".format(thumbnail))
-
+        cmds.delete(camera)
         if "representations" not in instance.data:
             instance.data["representations"] = []
 

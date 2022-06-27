@@ -159,7 +159,7 @@
     "deadline": {
         "enabled": true,
         "deadline_urls": {
-            "default": "http://127.0.0.1:8082"
+            "default": "http://deadline-server:8082"
         }
     },
     "muster": {

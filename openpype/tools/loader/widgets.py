@@ -834,6 +834,8 @@ class ThumbnailWidget(QtWidgets.QLabel):
         )
 
     def set_thumbnail(self, doc_id=None,thumbnail_ent=None):
+        print(doc_id)
+        print(thumbnail_ent)
         if not doc_id and not thumbnail_ent:
             self.set_pixmap()
             return
@@ -847,9 +849,11 @@ class ThumbnailWidget(QtWidgets.QLabel):
             {"_id": doc_id},
             {"data.thumbnail_id"}
         )
+        print(doc)
         thumbnail_id = None
         if doc:
             thumbnail_id = doc.get("data", {}).get("thumbnail_id")
+            print('a ' + str(thumbnail_id))
         if thumbnail_id == self.current_thumb_id and self.current_thumb_id is not None:
             if self.current_thumbnail is None:
                 self.set_pixmap()
@@ -859,6 +863,7 @@ class ThumbnailWidget(QtWidgets.QLabel):
             self.set_pixmap()
             return
 
+        print('2')
         if not thumbnail_ent:
             thumbnail_ent = self.dbcon.find_one(
                 {"type": "thumbnail", "_id": thumbnail_id})

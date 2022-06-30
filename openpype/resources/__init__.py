@@ -40,6 +40,8 @@ def get_liberation_font_path(bold=False, italic=False):
 
 
 def get_openpype_icon_filepath(staging=None):
+    if os.environ.get('HORNET_OPENPYPE_DEVELOP', None) is not None:
+        staging = True
     if staging is None:
         staging = is_running_staging()
 

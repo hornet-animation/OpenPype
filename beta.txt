@@ -1,0 +1,12 @@
+Version: 3.15.8-nightly.1-h0013
+Link : https://github.com/hornet-animation/OpenPype/tree/beta
+
+Notes:
+
+Purpose: Creating the beta branch after merging from upstream.
+
+Point of Contact: For any questions or assistance related to the beta branch, please reach out to Erik Kroka / Joseph Tom.
+
+Timeline: We aim to keep the beta branch as an exact copy of the current dev branch as of June 28, 2023, serving as a bookmark.
+
+Commit Link: https://github.com/hornet-animation/OpenPype/tree/75a1210bfeab1063022dc6189f030a39d041123a

@@ -9,7 +9,6 @@ from openpype.lib import Logger
 import shutil
 from .anatomy import Anatomy
 from .template_data import get_project_template_data
-import win32file
 import sys
 import subprocess
 def concatenate_splitted_paths(split_paths, anatomy):
@@ -17,18 +16,22 @@ def concatenate_splitted_paths(split_paths, anatomy):
     pattern_array = re.compile(r"\[.*\]")
     pattern_symlink = re.compile(r"symlink\.[^.,\],\s,]*")
     output = []
+    excluded = []
+    for path_items in split_paths:
+        for path_item in path_items:
+            if('symlink' in path_item):
+                make_link(path_item,path_items,anatomy)
+                excluded.append(path_items)
+                break
+    split_paths = [paths for paths in split_paths if paths not in excluded]
+
     for path_items in split_paths:
         clean_items = []
-        links = []
         if isinstance(path_items, str):
             path_items = [path_items]
 
         for path_item in path_items:
             if not re.match(r"{.+}", path_item):
-                link = re.findall(pattern_symlink,path_item)
-                #Hornet > create symlink
-                if len(link) > 0:
-                    make_link(path_item,path_items,anatomy)
                 path_item = re.sub(pattern_array, "", path_item)
             clean_items.append(path_item)
 
@@ -43,7 +46,6 @@ def concatenate_splitted_paths(split_paths, anatomy):
                                r"{project[name]}"] + clean_items[1:]
                 output.append(os.path.normpath(os.path.sep.join(clean_items)))
             continue
-
         output.append(os.path.normpath(os.path.sep.join(clean_items)))
 
     return output
@@ -54,7 +56,21 @@ def make_link(link_item,path_items, anatomy):
         'producers': '//fs.hellohornet.lan/producers/',
         'resources': '//fs.hellohornet.lan/resources/'
     }
-    drive_letter_pattern = r"[A-Z]:[\\/]"
+    if sys.platform == 'darwin':
+        DRIVES = {
+            'edit': '/Volumes/edit/',
+            'producers': '/Volumes/producers/',
+            'resources': '/Volumes/resources/'
+        }
+    if 'linux' in sys.platform:
+        DRIVES = {
+            'edit': '/mnt/edit/',
+            'producers': '/mnt/producers/',
+            'resources': '/mnt/resources/'
+        }
+    drive_letter_pattern = r"[A-Z]:[\\\/]"
+    mac_volume_pattern = r"^/Volumes/(production|edit|producers|resources)/"
+    lnx_volume_pattern = r"^/mnt/(prod|edit|producers|resources)/"
     unc_pattern = r"(\\\\[\w\s.$_-]+[\\/](?:[\w\s.$_-]+[\\/])+[\w\s.$_-]+)"
     pattern_symlink = re.compile(r"symlink\.[^.,\],\s,]*")
 
@@ -68,25 +84,39 @@ def make_link(link_item,path_items, anatomy):
                     continue
                 clean_items = ["{{root[{}]}}".format(root),
                                r"{project[name]}"] + clean_items[1:]
-
+    
     stack = fill_paths(clean_items,anatomy)
+    link_drive = link_item.split('.')[1].strip('[]')
+    # create the paths on the corresponding drive before we link
+    clean_stack = [item for item in stack if not 'symlink' in item]
+    if 'linux' in sys.platform:
+        clean_stack = re.sub(lnx_volume_pattern, DRIVES[link_drive],'/'.join(clean_stack)).replace('\\','/')
+    elif sys.platform == 'win32':
+        clean_stack = re.sub(drive_letter_pattern, DRIVES[link_drive],'/'.join(clean_stack)).replace('\\','/')
+    elif sys.platform == 'darwin':
+        clean_stack = re.sub(mac_volume_pattern, DRIVES[link_drive],'/'.join(clean_stack)).replace('\\','/')
+    else:
+        clean_stack = re.sub(unc_pattern, DRIVES[link_drive],clean_stack).replace('\\','/')
+
     link_alias = link_item.split('[')[0]
     link_loc = stack[:stack.index(link_item)]
-    link_drive = link_item.split('.')[1].strip('[]')
     link_file = ('/'.join(link_loc)).replace('\\','/')
     link_path = '/'.join(link_loc)
     link_target = re.sub(drive_letter_pattern, DRIVES[link_drive],link_path)
     link_target = re.sub(unc_pattern, DRIVES[link_drive],link_target).replace('\\','/')
-    log.debug('linking to drive ' + link_drive)
-    log.debug('link at ' + link_file)
-    log.debug('link target: ' + link_target)
-    log.debug('----')
+    try: 
+        log.debug(clean_stack)
+        os.makedirs(clean_stack)
+    except Exception as e:
+        log.debug(e)
     try:
         if sys.platform == 'darwin':
-            print(f'osascript -e \'tell application "Finder" to make alias file to POSIX file "{link_target}" at POSIX file "{link_at}"\'')
-            subprocess.Popen( f'osascript -e \'tell application "Finder" to make alias file to POSIX file "{link_target}" at POSIX file "{link_at}"\'',shell=True)
+            print(f'osascript -e \'tell application "Finder" to make alias file to POSIX file "{link_target}" at POSIX file "{link_path}"\'')
+            #subprocess.Popen( f'osascript -e \'tell application "Finder" to make alias file to POSIX file "{link_target}" at POSIX file "{link_path}"\'',shell=True)
         elif sys.platform == 'win32':
-            win32file.CreateSymbolicLink(link_file,link_target,1)
+            pass
+            #import win32file
+            # win32file.CreateSymbolicLink(link_file,link_target,1)
     except Exception as e:
         log.debug(e)
 

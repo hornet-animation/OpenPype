@@ -1,6 +1,7 @@
 import os
 
 from openpype.settings import get_project_settings
+from openpype.pipeline import legacy_io
 from openpype.pipeline import install_host
 from openpype.hosts.maya.api import MayaHost
 
@@ -67,3 +68,10 @@ if shelf_preset:
 
 
 print("Finished OpenPype usersetup.")
+
+# NOTE Hornet hotfix for workspace
+print("userSetup:Hornet hotfix for workspace...")
+if project_settings.get('maya'):
+    from openpype.hpipe import maya_fix
+    maya_fix.fix_workspace()
+# END

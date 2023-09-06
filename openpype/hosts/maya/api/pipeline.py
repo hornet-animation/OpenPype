@@ -98,6 +98,11 @@ class MayaHost(HostBase, IWorkfileHost, ILoadHost):
 
             return
 
+        # NOTE Hornet hotfix for workspace
+        from openpype.hpipe import maya_fix
+        maya_fix.fix_workspace()
+        # END
+
         _set_project()
         self._register_callbacks()
 

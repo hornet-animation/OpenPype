@@ -968,12 +968,15 @@ class ExporterReviewMov(ExporterReview):
         # Knobs `meta_codec` and `mov64_codec` are not available on centos.
         # TODO shouldn't this come from settings on outputs?
         try:
-            write_node["meta_codec"].setValue("ap4h")
+            # write_node["meta_codec"].setValue("ap4h")
+            write_node["colorspace"].setValue("Output - Rec.709")
+            write_node["meta_codec"].setValue("apch")
         except Exception:
             self.log.info("`meta_codec` knob was not found")
 
         try:
-            write_node["mov64_codec"].setValue("ap4h")
+            # write_node["mov64_codec"].setValue("ap4h")
+            write_node["mov64_codec"].setValue("apch")
             write_node["mov64_fps"].setValue(float(fps))
         except Exception:
             self.log.info("`mov64_codec` knob was not found")
@@ -999,11 +1002,19 @@ class ExporterReviewMov(ExporterReview):
             self.render(write_node.name())
 
         # ---------- generate representation data
-        self.get_representation_data(
-            tags=["review", "delete"] + add_tags,
-            custom_tags=add_custom_tags,
-            range=True
-        )
+        # This is modified to copy hi-res mov along with the publish when review is on for use existing frames on farm mode.
+        if kwargs.get('hrender_target') == 'a_frames_farm':
+            self.get_representation_data(
+                tags=["review"] ,
+                custom_tags=add_custom_tags,
+                range=True
+            )
+        else:
+            self.get_representation_data(
+                tags=["review", "delete"] + add_tags,
+                custom_tags=add_custom_tags,
+                range=True
+            )
 
         self.log.debug("Representation...   `{}`".format(self.data))
 

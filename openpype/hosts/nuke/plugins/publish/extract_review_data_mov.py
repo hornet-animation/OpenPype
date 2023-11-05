@@ -103,7 +103,8 @@ class ExtractReviewDataMov(publish.Extractor):
                 exporter = plugin.ExporterReviewMov(
                     self, instance, o_name, o_data["extension"],
                     multiple_presets)
-
+                if instance.data.get('render_target') == 'a_frames_farm':
+                    o_data['hrender_target'] = instance.data.get('render_target')
                 if instance.data.get("farm"):
                     if "review" in instance.data["families"]:
                         instance.data["families"].remove("review")
@@ -140,7 +141,14 @@ class ExtractReviewDataMov(publish.Extractor):
                 "Not available baking profile."
             ))
             self.log.debug(instance.data["families"])
-
+        if instance.data.get('render_target') == 'a_frames_farm':
+            mov_data = [ x for x in instance.data["representations"] if x['name'] == 'baking']
+            if mov_data:
+                mov_path = os.path.join(mov_data[0].get("stagingDir"),mov_data[0].get("files"))
+                self.log.info("mov_path {}".format(mov_path))
+                if not os.path.exists(mov_path):
+                    with open(mov_path, 'w') as file:
+                        pass
         self.log.debug(
             "_ representations: {}".format(
                 instance.data["representations"]))

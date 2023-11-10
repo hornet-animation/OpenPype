@@ -1132,7 +1132,7 @@ class ProcessSubmittedJobOnFarm(pyblish.api.InstancePlugin):
 
         metadata_path, rootless_metadata_path = self._create_metadata_path(
             instance)
-
+        self.log.info('expectedFiles {}'.format(data.get("expectedFiles")))
         self.log.info("Writing json file: {}".format(metadata_path))
         with open(metadata_path, "w") as f:
             json.dump(publish_job, f, indent=4, sort_keys=True)

@@ -739,10 +739,12 @@ class ExporterReviewLut(ExporterReview):
             if not self.viewer_lut_raw:
                 # OCIODisplay
                 dag_node = nuke.createNode("OCIODisplay")
+                dag_node["view"].setValue('Rec.709') # force updated for rec 709
                 # connect
                 dag_node.setInput(0, self.previous_node)
                 self._temp_nodes.append(dag_node)
                 self.previous_node = dag_node
+                self.log.debug("OCIODisplay view {}".format(dag_node["view"].value()))
                 self.log.debug(
                     "OCIODisplay...   `{}`".format(self._temp_nodes))
 
@@ -838,6 +840,7 @@ class ExporterReviewMov(ExporterReview):
             # save file to the path
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
+            self.log.info('Current file : {}'.format(self.instance.context.data["currentFile"]))
             shutil.copyfile(self.instance.context.data["currentFile"], path)
 
         self.log.info("Nodes exported...")
@@ -947,6 +950,7 @@ class ExporterReviewMov(ExporterReview):
             if not self.viewer_lut_raw:
                 # OCIODisplay
                 dag_node = nuke.createNode("OCIODisplay")
+                dag_node["view"].setValue('Rec.709')
 
                 # assign display
                 display, viewer = get_viewer_config_from_string(
@@ -955,10 +959,14 @@ class ExporterReviewMov(ExporterReview):
                 if display:
                     dag_node["display"].setValue(display)
 
-                # assign viewer
-                dag_node["view"].setValue(viewer)
 
+                # assign viewer
+                # dag_node["view"].setValue(viewer)
+                self.log.debug("OCIODisplay: {}".format(dag_node["view"].value()))
                 self._connect_to_above_nodes(dag_node, subset, "OCIODisplay...   `{}`")
+                dag_node["view"].setValue('Rec.709') # force updated for rec 709
+                dag_node["view"].setValue(21)
+                nuke.scriptSave()
         # Write node
         write_node = nuke.createNode("Write")
         self.log.debug("Path: {}".format(self.path))
@@ -993,6 +1001,7 @@ class ExporterReviewMov(ExporterReview):
         if self.publish_on_farm:
             nuke.scriptSave()
             path_nk = self.save_file()
+            self.log.info("Nuke file path :{}".format(path_nk))
             self.data.update({
                 "bakeScriptPath": path_nk,
                 "bakeWriteNodeName": write_node.name(),
@@ -1026,10 +1035,14 @@ class ExporterReviewMov(ExporterReview):
     def _shift_to_previous_node_and_temp(self, subset, node, message):
         self._temp_nodes[subset].append(node)
         self.previous_node = node
+        if node.Class() == "OCIODisplay":
+            self.log.info("view {}".format(node["view"].value()))
         self.log.debug(message.format(self._temp_nodes[subset]))
 
     def _connect_to_above_nodes(self, node, subset, message):
         node.setInput(0, self.previous_node)
+        if node.Class() == "OCIODisplay":
+            self.log.info("view {}".format(node["view"].value()))
         self._shift_to_previous_node_and_temp(subset, node, message)
 
 

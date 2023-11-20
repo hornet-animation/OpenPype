@@ -39,7 +39,7 @@ jobs:
         $result = [regex]::Matches($version_file, '__version__ = "(?<version>\d+\.\d+.\d+.*)"')
         $openpype_version = $result[0].Groups['version'].Value
         cd build
-        mv exe.win-amd64-3.9 $openpype_version
+        mv exe.win-amd64-3.9 $openpype_version_${{ github.run_number }}
     - name: Upload to S3
       run: |
         $current_dir = Get-Location
@@ -49,5 +49,5 @@ jobs:
         $awsCliPath = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
         cd build
         $sourcePath = $openpype_version
-        $destinationPath = "${{ vars.S3_BUCKET_WIN }}/pull-request/$openpype_version/"
+        $destinationPath = "${{ vars.S3_BUCKET_WIN }}/pull-request/$openpype_version_${{ github.run_number }}/"
         & $awsCliPath s3 sync $sourcePath $destinationPath

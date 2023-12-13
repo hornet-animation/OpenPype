@@ -180,7 +180,7 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
 
         file_transactions = FileTransaction(log=self.log,
                                             # Enforce unique transfers
-                                            allow_queue_replacements=False)
+                                            allow_queue_replacements=True)
         try:
             self.register(instance, file_transactions, filtered_repres)
         except DuplicateDestinationError as exc:

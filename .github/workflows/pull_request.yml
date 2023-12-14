@@ -14,7 +14,8 @@ permissions:
 jobs:
   build_pr:
     name: Build
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: win-latest
     steps:
     - name: checkout repo
       uses: actions/checkout@v3

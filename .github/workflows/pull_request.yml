@@ -51,12 +51,9 @@ jobs:
         $sourcePath = $openpype_version
         $destinationPath = "${{ vars.S3_BUCKET }}/${{ vars.BUILDS }}/pull-request/$openpype_version/"
         & $awsCliPath s3 sync $sourcePath $destinationPath
-        echo "::set-env name=OPENPYPE_VERSION::$openpype_version"
-    - name: Set OPENPYPE_VERSION
-      run: |
-        echo "OPENPYPE_VERSION : $openpype_version"
+        echo "OPENPYPE_VERSION=${OPENPYPE_VERSION}" >> $GITHUB_ENV
       env:
-        REPOSITORY_VAR: $OPENPYPE_VERSION
+        OPENPYPE_VERSION: $OPENPYPE_VERSION
       
   depoly:
     runs-on: deploy-linux
@@ -65,7 +62,7 @@ jobs:
     - name: Download from S3
       run: |
         # linuxBuildVersion="${{ vars.BUILD_VERSION }}.${{ github.run_number }}"   
-        linuxBuildVersion=${{ REPOSITORY_VAR }}  
+        linuxBuildVersion=${{ vars.OPENPYPE_VERSION }}  
         echo "linuxBuildVersion:$linuxBuildVersion"
         sourcePath="${{ vars.S3_BUCKET }}/${{ vars.BUILDS }}/pull-request/$linuxBuildVersion"          
         destinationPath="/home/hornetadmin/${{ vars.BUILDS }}/pull-request/$linuxBuildVersion"

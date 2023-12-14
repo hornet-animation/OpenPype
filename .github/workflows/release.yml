@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Depoly packages to prod and beta"
+        required: true
+        default : 'prod'
+        type : choice
+        options:
+          - prod
+          - beta
+          - dev
+      build_version:
+        description: "Specify the build version"
+        required: true
+        type: string    
+        
+jobs:
+    release:
+      runs-on: deploy-linux
+      steps:
+        - name: Release to hpipe
+          run: |                        
+            environmentInput="${{ github.event.inputs.environment }}"
+            versionInput="${{ github.event.inputs.build_version }}"
+            # buildVersion="${{ vars.BUILD_VERSION }}.$versionInput"            
+            buildVersion=$versionInput
+            sourcePath="${{ vars.LINUX_ROOT }}/${{ vars.BUILDS }}/$buildVersion"
+            if [[ "$environmentInput" == "prod" ]]; then              
+              destinationPath="${{ vars.LINUX_ROOT }}/${{ vars.PROD }}"  
+            elif [[ "$environmentInput" == "dev" ]]; then
+              destinationPath="${{ vars.LINUX_ROOT }}/${{ vars.DEV }}"
+            elif [[ "$environmentInput" == "beta" ]]; then
+              destinationPath="${{ vars.LINUX_ROOT }}/${{ vars.BETA }}"
+            fi
+            mkdir -p $destinationPath            
+            cp -al --no-preserve=mode $sourcePath/*  $destinationPath        
+            echo "$sourcePath --> $destinationPath" 

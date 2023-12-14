@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build_pr:
     name: Build
     runs-on: self-hosted
 
@@ -54,10 +54,10 @@ jobs:
         echo "OPENPYPE_VERSION=${OPENPYPE_VERSION}" >> $GITHUB_ENV
       env:
         OPENPYPE_VERSION: $OPENPYPE_VERSION
-              
+
   depoly:
     runs-on: deploy-linux
-    needs: build
+    needs: build_pr
     steps:
     - name: Download from S3
       run: |

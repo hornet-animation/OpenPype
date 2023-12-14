@@ -15,7 +15,6 @@ jobs:
   build_pr:
     name: Build
     runs-on: self-hosted
-
     steps:
     - name: checkout repo
       uses: actions/checkout@v3
@@ -52,8 +51,8 @@ jobs:
         $destinationPath = "${{ vars.S3_BUCKET }}/${{ vars.BUILDS }}/pull-request/$openpype_version/"
         & $awsCliPath s3 sync $sourcePath $destinationPath
         echo "OPENPYPE_VERSION=${OPENPYPE_VERSION}" >> $GITHUB_ENV
-      env:
-        OPENPYPE_VERSION: $OPENPYPE_VERSION
+      # env:
+      #   OPENPYPE_VERSION: $OPENPYPE_VERSION
   depoly:
     runs-on: deploy-linux
     needs: build_pr

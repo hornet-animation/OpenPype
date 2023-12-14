@@ -54,7 +54,7 @@ jobs:
         echo "OPENPYPE_VERSION=${OPENPYPE_VERSION}" >> $GITHUB_ENV
       env:
         OPENPYPE_VERSION: $OPENPYPE_VERSION
-      
+              
   depoly:
     runs-on: deploy-linux
     needs: build

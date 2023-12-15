@@ -51,20 +51,25 @@ jobs:
         $destinationPath = "${{ vars.S3_BUCKET }}/${{ vars.BUILDS }}/pull-request/$openpype_version/"
         & $awsCliPath s3 sync $sourcePath $destinationPath
         echo "OPENPYPE_VERSION=${OPENPYPE_VERSION}" >> $GITHUB_ENV
-      # env:
-      #   OPENPYPE_VERSION: $OPENPYPE_VERSION
-  depoly:
-    runs-on: deploy-linux
-    # needs: build_pr
-    steps:
-    - name: Download from S3
+        
+    - name: Trigger Deploy Workflow
+      if: ${{ github.event.pull_request.head.repo.full_name == 'hornet-animation/depoly-localvm' }}
       run: |
-        # linuxBuildVersion="${{ vars.BUILD_VERSION }}.${{ github.run_number }}"   
-        linuxBuildVersion=${{ vars.OPENPYPE_VERSION }}  
-        echo "linuxBuildVersion:$linuxBuildVersion"
-        sourcePath="${{ vars.S3_BUCKET }}/${{ vars.BUILDS }}/pull-request/$linuxBuildVersion"          
-        destinationPath="/home/hornetadmin/${{ vars.BUILDS }}/pull-request/$linuxBuildVersion"
-        devPath="/home/hornetadmin/${{ vars.DEV }}/pull-request"
+        echo "Triggering deploy workflow in hornet-animation/depoly-localvm..."
+        payload='{"ref":"main"}'  # Customize the payload if needed
+        echo "::set-output name=payload::$payload"
+        echo "::set-env name=TRIGGER_REPO::hornet-animation/depoly-localvm"
+        echo "Triggering deploy workflow in hornet-animation/depoly-localvm..." > trigger.log
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.G_TOKEN }}" \
+          -H "Accept: application/vnd.github.everest-preview+json" \
+          -H "Content-Type: application/json" \
+          -d "{\"event_type\": \"trigger-deploy\", \"client_payload\": $payload}" \
+          https://api.github.com/repos/hornet-animation/depoly-localvm/dispatches
+      continue-on-error: true
 
-        aws s3 cp $sourcePath $destinationPath --recursive          
-        cp -al --no-preserve=mode $destinationPath/*  $devPath        
+    - name: Trigger Deploy Workflow Status
+      if: ${{ steps.trigger.outputs.payload == '{}' && failure() }}
+      run: cat trigger.log
+      # env:
+      #   OPENPYPE_VERSION: $OPENPYPE_VERSION 

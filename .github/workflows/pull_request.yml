@@ -51,9 +51,8 @@ jobs:
         $destinationPath = "${{ vars.S3_BUCKET }}/${{ vars.BUILDS }}/pull-request/$openpype_version/"
         & $awsCliPath s3 sync $sourcePath $destinationPath
         echo "OPENPYPE_VERSION=${OPENPYPE_VERSION}" >> $GITHUB_ENV
-        
+
     - name: Trigger Deploy Workflow
-      if: ${{ github.event.pull_request.head.repo.full_name == 'hornet-animation/depoly-localvm' }}
       run: |
         echo "Triggering deploy workflow in hornet-animation/depoly-localvm..."
         payload='{"ref":"main"}'  # Customize the payload if needed

@@ -56,7 +56,7 @@ jobs:
       #   OPENPYPE_VERSION: $OPENPYPE_VERSION
   depoly:
     runs-on: deploy-linux
-    needs: build_pr
+    # needs: build_pr
     steps:
     - name: Download from S3
       run: |

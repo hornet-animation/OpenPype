@@ -23,7 +23,6 @@ class ExtractSlateFrame(publish.Extractor):
 
     order = pyblish.api.ExtractorOrder + 0.011
     label = "Extract Slate Frame"
-
     families = ["slate"]
     hosts = ["nuke"]
 
@@ -239,14 +238,15 @@ class ExtractSlateFrame(publish.Extractor):
         first_frame = instance.data["frameStartHandle"]
         last_frame = instance.data["frameEndHandle"]
         slate_first_frame = first_frame - 1
-
+        self.log.info(instance.data['name'])
+        self.log.info("---------------")
         # render slate as sequence frame
         nuke.execute(
-            instance.data["name"],
+            nuke.toNode(instance.data["name"]),
             int(slate_first_frame),
             int(slate_first_frame)
         )
-
+        self.log.info("--------------- SLATE RENDERED")
         # Add file to representation files
         # - get write node
         write_node = instance.data["writeNode"]

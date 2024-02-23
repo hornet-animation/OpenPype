@@ -739,7 +739,11 @@ class ExporterReviewLut(ExporterReview):
             if not self.viewer_lut_raw:
                 # OCIODisplay
                 dag_node = nuke.createNode("OCIODisplay")
-                dag_node["view"].setValue('Rec.709') # force updated for rec 709
+                # dag_node["view"].setValue('Rec.709') # force updated for rec 709
+
+                dag_node["view"].setValue('sRGB')
+                dag_node["colorspace"].setValue('Output - sRGB')
+
                 # connect
                 dag_node.setInput(0, self.previous_node)
                 self._temp_nodes.append(dag_node)
@@ -951,6 +955,10 @@ class ExporterReviewMov(ExporterReview):
                 # OCIODisplay
                 dag_node = nuke.createNode("OCIODisplay")
                 dag_node["view"].setValue('Rec.709')
+                if kwargs.get('proxy_color'):
+                    dag_node_srgb = nuke.createNode("OCIODisplay")
+                    dag_node_srgb["view"].setValue('sRGB')
+                    dag_node_srgb["colorspace"].setValue('Output - sRGB')
 
                 # assign display
                 display, viewer = get_viewer_config_from_string(
@@ -964,8 +972,10 @@ class ExporterReviewMov(ExporterReview):
                 # dag_node["view"].setValue(viewer)
                 self.log.debug("OCIODisplay: {}".format(dag_node["view"].value()))
                 self._connect_to_above_nodes(dag_node, subset, "OCIODisplay...   `{}`")
-                dag_node["view"].setValue('Rec.709') # force updated for rec 709
-                dag_node["view"].setValue(21)
+                if kwargs.get('proxy_color'):
+                    dag_node_srgb.setInput(0, r_node)
+                # dag_node["view"].setValue('Rec.709') # force updated for rec 709
+                # dag_node["view"].setValue(21)
                 nuke.scriptSave()
         # Write node
         write_node = nuke.createNode("Write")
@@ -973,18 +983,33 @@ class ExporterReviewMov(ExporterReview):
         write_node["file"].setValue(str(self.path))
         write_node["file_type"].setValue(str(self.ext))
 
+        if kwargs.get('proxy_color'):
+            srfb_file = str(self.path).replace('.baking.','.baking_srgb.')
+            write_node_srgb = nuke.createNode("Write")
+            self.log.debug("Path: {}".format(srfb_file))
+            write_node_srgb["file"].setValue(srfb_file)
+            write_node_srgb["file_type"].setValue(str(self.ext))
+
         # Knobs `meta_codec` and `mov64_codec` are not available on centos.
         # TODO shouldn't this come from settings on outputs?
         try:
-            # write_node["meta_codec"].setValue("ap4h")
+            write_node["meta_codec"].setValue("ap4h")
             write_node["colorspace"].setValue("Output - Rec.709")
             write_node["meta_codec"].setValue("apch")
+            if kwargs.get('proxy_color'):
+                write_node_srgb['colorspace'].setValue('Output - sRGB')
+
         except Exception:
             self.log.info("`meta_codec` knob was not found")
 
         try:
-            # write_node["mov64_codec"].setValue("ap4h")
-            write_node["mov64_codec"].setValue("apch")
+            write_node["mov64_codec"].setValue("ap4h")
+            if kwargs.get('proxy_color'):
+                write_node_srgb['mov64_codec'].setValue('h264')
+                write_node_srgb['file_type'].setValue('mov')
+                # write_node["mov64_codec"].setValue("apch")
+                write_node_srgb.setInput(0, dag_node_srgb)
+
             write_node["mov64_fps"].setValue(float(fps))
         except Exception:
             self.log.info("`mov64_codec` knob was not found")
@@ -994,6 +1019,9 @@ class ExporterReviewMov(ExporterReview):
         # connect
         write_node.setInput(0, self.previous_node)
         self._temp_nodes[subset].append(write_node)
+        if kwargs.get('proxy_color'):
+            self._temp_nodes[subset].append(dag_node_srgb)
+            self._temp_nodes[subset].append(write_node_srgb)
         self.log.debug("Write...   `{}`".format(self._temp_nodes[subset]))
         # ---------- end nodes creation
 
@@ -1002,11 +1030,21 @@ class ExporterReviewMov(ExporterReview):
             nuke.scriptSave()
             path_nk = self.save_file()
             self.log.info("Nuke file path :{}".format(path_nk))
-            self.data.update({
-                "bakeScriptPath": path_nk,
-                "bakeWriteNodeName": write_node.name(),
-                "bakeRenderPath": self.path
-            })
+            if kwargs.get('proxy_color'):
+                write_list = []
+                write_list.append(write_node.name())
+                write_list.append(write_node_srgb.name())
+                self.data.update({
+                    "bakeScriptPath": path_nk,
+                    "bakeWriteNodeName": write_list,
+                    "bakeRenderPath": self.path
+                })
+            else:
+                self.data.update({
+                    "bakeScriptPath": path_nk,
+                    "bakeWriteNodeName": write_node.name(),
+                    "bakeRenderPath": self.path
+                })
         else:
             self.render(write_node.name())
 

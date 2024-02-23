@@ -109,8 +109,9 @@ class ExtractReviewDataMov(publish.Extractor):
                     if "review" in instance.data["families"]:
                         instance.data["families"].remove("review")
 
+                    if instance.data.get('render_target') == 'a_frames_farm':
+                        o_data['proxy_color'] = True
                     data = exporter.generate_mov(farm=True, **o_data)
-
                     self.log.debug(
                         "_ data: {}".format(data))
 

@@ -41,7 +41,7 @@ from .pipeline import (
     list_instances,
     remove_instance
 )
-
+from openpype.hpipe import nuke_fix
 
 def _collect_and_cache_nodes(creator):
     key = "openpype.nuke.nodes"
@@ -621,6 +621,9 @@ class ExporterReview(object):
                                                Defaults to None.
         """
         add_tags = tags or []
+        self.file = self.file.replace('.baking.','.baking_rec709.')
+        # self.file = self.file
+        self.log.info('self.file {}'.format(self.file))
         repre = {
             "name": self.name,
             "ext": self.ext,
@@ -956,9 +959,15 @@ class ExporterReviewMov(ExporterReview):
                 dag_node = nuke.createNode("OCIODisplay")
                 dag_node["view"].setValue('Rec.709')
                 if kwargs.get('proxy_color'):
+                    reformat_node = nuke.createNode("Reformat")
+                    reformat_node['type'].setValue(2)
+                    attr = reformat_node['scale']
+                    attr.setAnimated()
+                    reformat_node['scale'].setValue(1)
                     dag_node_srgb = nuke.createNode("OCIODisplay")
                     dag_node_srgb["view"].setValue('sRGB')
-                    dag_node_srgb["colorspace"].setValue('Output - sRGB')
+                    # dag_node_srgb["colorspace"].setValue('Output - sRGB')
+                    dag_node_srgb["colorspace"].setValue('scene_linear')
 
                 # assign display
                 display, viewer = get_viewer_config_from_string(
@@ -973,18 +982,21 @@ class ExporterReviewMov(ExporterReview):
                 self.log.debug("OCIODisplay: {}".format(dag_node["view"].value()))
                 self._connect_to_above_nodes(dag_node, subset, "OCIODisplay...   `{}`")
                 if kwargs.get('proxy_color'):
-                    dag_node_srgb.setInput(0, r_node)
+                    reformat_node.setInput(0, r_node)
+                    dag_node_srgb.setInput(0, reformat_node)
                 # dag_node["view"].setValue('Rec.709') # force updated for rec 709
                 # dag_node["view"].setValue(21)
                 nuke.scriptSave()
         # Write node
+        path_fixer = nuke_fix.NameFix()
         write_node = nuke.createNode("Write")
-        self.log.debug("Path: {}".format(self.path))
-        write_node["file"].setValue(str(self.path))
+        new_path = str(path_fixer.fix_baking(str(self.path), 'rec709'))
+        self.log.debug("Path: {}".format(new_path))
+        write_node["file"].setValue(new_path)
         write_node["file_type"].setValue(str(self.ext))
 
         if kwargs.get('proxy_color'):
-            srfb_file = str(self.path).replace('.baking.','.baking_srgb.')
+            srfb_file = str(path_fixer.fix_baking(str(self.path), 'sRGB'))
             write_node_srgb = nuke.createNode("Write")
             self.log.debug("Path: {}".format(srfb_file))
             write_node_srgb["file"].setValue(srfb_file)
@@ -1020,6 +1032,7 @@ class ExporterReviewMov(ExporterReview):
         write_node.setInput(0, self.previous_node)
         self._temp_nodes[subset].append(write_node)
         if kwargs.get('proxy_color'):
+            self._temp_nodes[subset].append(reformat_node)
             self._temp_nodes[subset].append(dag_node_srgb)
             self._temp_nodes[subset].append(write_node_srgb)
         self.log.debug("Write...   `{}`".format(self._temp_nodes[subset]))

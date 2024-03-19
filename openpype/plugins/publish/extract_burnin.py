@@ -19,7 +19,8 @@ from openpype.lib import (
     should_convert_for_ffmpeg
 )
 from openpype.lib.profiles_filtering import filter_profiles
-
+from openpype.hpipe import nuke_fix
+path_fixer = nuke_fix.NameFix()
 
 class ExtractBurnin(publish.Extractor):
     """
@@ -300,15 +301,20 @@ class ExtractBurnin(publish.Extractor):
                 self.input_output_paths(
                     repre, new_repre, temp_data, filename_suffix
                 )
-
+                full_input_path =  str(path_fixer.fix_baking(temp_data["full_input_path"], 'proxy'))
+                # temp_data["full_output_path"] =  str(path_fixer.fix_baking(temp_data["full_output_path"][0], 'proxy'))
+                self.log.info('ExtractBurnin temp_data["full_input_path"] {}'.format(temp_data["full_input_path"]))
+                self.log.info('ExtractBurnin full_input_path {}'.format(full_input_path))
                 # Data for burnin script
                 script_data = {
-                    "input": temp_data["full_input_path"],
+                    # "input": temp_data["full_input_path"],
+                    "input": full_input_path,
                     "output": temp_data["full_output_path"],
                     "burnin_data": burnin_data,
                     "options": copy.deepcopy(burnin_options),
                     "values": burnin_values,
-                    "full_input_path": temp_data["full_input_paths"][0],
+                    # "full_input_path": temp_data["full_input_paths"][0],
+                    "full_input_path": full_input_path,
                     "first_frame": temp_data["first_frame"],
                     "ffmpeg_cmd": new_repre.get("ffmpeg_cmd", "")
                 }

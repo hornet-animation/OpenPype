@@ -40,3 +40,4 @@ class CollectSourceForSource(pyblish.api.InstancePlugin):
             if not instance.data.get("originalDirname"):
                 instance.data["originalDirname"] = \
                     os.path.dirname(source_file)
+        self.log.info('Collect Source instance :{}'.format(instance.data))

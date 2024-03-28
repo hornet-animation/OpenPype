@@ -1004,6 +1004,7 @@ class ExporterReviewMov(ExporterReview):
 
         # Knobs `meta_codec` and `mov64_codec` are not available on centos.
         # TODO shouldn't this come from settings on outputs?
+        # write node settings for nuke
         try:
             # write_node["meta_codec"].setValue("ap4h")
             write_node["colorspace"].setValue("Output - Rec.709")
@@ -1017,6 +1018,7 @@ class ExporterReviewMov(ExporterReview):
         except Exception:
             self.log.info("`meta_codec` knob was not found")
 
+        # write node settings for nuke
         try:
             # write_node["mov64_codec"].setValue("ap4h")
             write_node["mov64_codec"].setValue('appr')
@@ -1027,9 +1029,22 @@ class ExporterReviewMov(ExporterReview):
                 write_node_srgb['file_type'].setValue('mov')
                 write_node_srgb["mov64_fps"].setValue(float(fps))
                 write_node_srgb.setInput(0, dag_node_srgb)
-
         except Exception:
             self.log.info("`mov64_codec` knob was not found")
+
+        # write node settings for nukeX
+        try:
+            # write_node["mov64_codec"].setValue("ap4h")
+            write_node["mov32_codec"].setValue('appr')
+            write_node["mov32_fps"].setValue(float(fps))
+            write_node["meta_codec"].setValue('apch')
+            if kwargs.get('proxy_color'):
+                write_node_srgb['meta_codec'].setValue('avc1')
+                write_node_srgb['file_type'].setValue('mov')
+                write_node_srgb["mov32_fps"].setValue(float(fps))
+                write_node_srgb.setInput(0, dag_node_srgb)
+        except Exception:
+            self.log.info("`mov32_codec` knob was not found")
 
         write_node["mov64_write_timecode"].setValue(1)
         write_node["raw"].setValue(1)
@@ -1037,8 +1052,8 @@ class ExporterReviewMov(ExporterReview):
             write_node_srgb["mov64_write_timecode"].setValue(1)
             write_node_srgb["raw"].setValue(1)
         # connect
-        write_node["mov64_codec"].setValue('appr')
-        write_node["mov_prores_codec_profile"].setValue('ProRes 4:2:2 HQ 10-bit')
+        # write_node["mov64_codec"].setValue('appr')
+        # write_node["mov_prores_codec_profile"].setValue('ProRes 4:2:2 HQ 10-bit')
         if kwargs.get('proxy_color'):
             write_node_srgb['colorspace'].setValue('Output - sRGB')
             write_node_srgb['mov64_codec'].setValue('h264')

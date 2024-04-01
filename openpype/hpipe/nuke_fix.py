@@ -1,12 +1,3 @@
-baking_output={'rec709':{'baking':'_rec709',
-                         'publish':'_rec709'},
-               'sRGB':{'baking':'_sRGB',
-                       'publish':'_sRGB'},
-               'proxy':{'baking':'_PRsrgb',
-                        'publish':'_PRsrgb'}}
-
-
-
 class NameFix:
     def fix_baking(self, file_path, color_space):
         if color_space.lower() == 'rec709':

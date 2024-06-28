@@ -32,6 +32,8 @@ from openpype.pipeline.publish import (
     KnownPublishError,
     get_publish_template_name,
 )
+from openpype.hpipe import nuke_fix
+path_fixer = nuke_fix.NameFix()
 
 log = logging.getLogger(__name__)
 
@@ -151,6 +153,7 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
     skip_host_families = []
 
     def process(self, instance):
+        self.log.info('IntegrateAsset instance : {}'.format(instance))
         if self._temp_skip_instance_by_settings(instance):
             return
 
@@ -315,6 +318,8 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
 
             for src, dst in prepared["transfers"]:
                 # todo: add support for hardlink transfers
+                # if dst:
+                #     dst = path_fixer.fix_publish(src, dst)
                 file_transactions.add(src, dst)
 
             prepared_representations.append(prepared)
@@ -674,6 +679,7 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
         #   - to add required data to 'repre_context' not used for
         #       formatting
         path_template_obj = anatomy.templates_obj[template_name]["path"]
+        self.log.debug("path_template_obj: {}".format(path_template_obj))
 
         # Treat template with 'orignalBasename' in special way
         if "{originalBasename}" in template:
@@ -709,6 +715,8 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
 
                 dst = path_template_obj.format_strict(template_data)
                 src = os.path.join(stagingdir, src_file_name)
+                if dst:
+                    dst = path_fixer.fix_publish(src, dst)
                 transfers.append((src, dst))
                 if repre_context is None:
                     repre_context = dst.used_values
@@ -785,6 +793,7 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
 
             # Update the destination indexes and padding
             dst_collection = clique.assemble(dst_filepaths)[0][0]
+
             dst_collection.padding = destination_padding
             if len(src_collection.indexes) != len(dst_collection.indexes):
                 raise KnownPublishError((
@@ -796,7 +805,10 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
             transfers = []
             for src_file_name, dst in zip(src_collection, dst_collection):
                 src = os.path.join(stagingdir, src_file_name)
+                if dst:
+                    dst = path_fixer.fix_publish(src, dst)
                 transfers.append((src, dst))
+            self.log.info('if transfers {}'.format(transfers))
 
         else:
             # Single file
@@ -811,7 +823,10 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
 
             # Single file transfer
             src = os.path.join(stagingdir, files)
+            if dst:
+                dst = path_fixer.fix_publish(src, dst)
             transfers = [(src, dst)]
+            self.log.info('else transfers {}'.format(transfers))
 
         # todo: Are we sure the assumption each representation
         #       ends up in the same folder is valid?
@@ -1011,14 +1026,14 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
         Returns:
             dict: file info dictionary
         """
-
-        return {
-            "_id": ObjectId(),
-            "path": self.get_rootless_path(anatomy, path),
-            "size": os.path.getsize(path),
-            "hash": source_hash(path),
-            "sites": sites
-        }
+        #TODO disbaled for testing
+        # return {
+        #     "_id": ObjectId(),
+        #     "path": self.get_rootless_path(anatomy, path),
+        #     "size": os.path.getsize(path),
+        #     "hash": source_hash(path),
+        #     "sites": sites
+        # }
 
     def _validate_path_in_project_roots(self, anatomy, file_path):
         """Checks if 'file_path' starts with any of the roots.

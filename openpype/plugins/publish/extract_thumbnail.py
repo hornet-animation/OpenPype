@@ -10,7 +10,7 @@ from openpype.lib import (
     run_subprocess,
     path_to_subprocess_arg,
 )
-
+from openpype.hpipe import nuke_fix
 
 class ExtractThumbnail(pyblish.api.InstancePlugin):
     """Create jpg thumbnail from sequence using ffmpeg"""
@@ -88,7 +88,10 @@ class ExtractThumbnail(pyblish.api.InstancePlugin):
                 input_file = repre_files[file_index]
 
             src_staging = os.path.normpath(repre["stagingDir"])
+            self.log.info('input_file {}'.format(input_file))
             full_input_path = os.path.join(src_staging, input_file)
+            path_fixer = nuke_fix.NameFix()
+            full_input_path = path_fixer.fix_baking(full_input_path,'sRGB')
             self.log.info("input {}".format(full_input_path))
             filename = os.path.splitext(input_file)[0]
             jpeg_file = filename + "_thumb.jpg"
@@ -174,6 +177,8 @@ class ExtractThumbnail(pyblish.api.InstancePlugin):
 
     def create_thumbnail_oiio(self, src_path, dst_path):
         self.log.info("outputting {}".format(dst_path))
+        self.log.info("src_path {}".format(src_path))
+        self.log.info("dst_path {}".format(dst_path))
         oiio_tool_path = get_oiio_tools_path()
         oiio_cmd = [
             oiio_tool_path,

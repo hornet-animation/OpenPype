@@ -200,7 +200,9 @@ def embedOptions():
     sub = nuke.PyScript_Knob('submit', 'Submit to Deadline', "deadlineNetworkSubmit()")
     sub.setFlag(0x00001000)
     clr = nuke.PyScript_Knob('clear', 'Clear Temp Outputs', "import os;fpath = os.path.dirname(nuke.thisNode().knob('File output').value());[os.remove(os.path.join(fpath, f)) for f in os.listdir(fpath)]")
-    pub = nuke.PyScript_Knob('publish', 'Publish', "from openpype.tools.utils import host_tools;host_tools.show_publisher(parent=(main_window if nuke.NUKE_VERSION_MAJOR >= 14 else None),tab='Publish')")
+    # pub = nuke.PyScript_Knob('publish', 'Publish', "from openpype.tools.utils import host_tools;host_tools.show_publisher(parent=(main_window if nuke.NUKE_VERSION_MAJOR >= 14 else None),tab='Publish')")
+    #TODO this is quick fix for Evan's testing.
+    pub = nuke.PyScript_Knob('publish', 'Publish', "from openpype.tools.utils import host_tools;host_tools.show_publisher(parent=(),tab='Publish')")
     readfrom_src = "import write_to_read;write_to_read.write_to_read(nuke.thisNode(), allow_relative=False)"
     readfrom = nuke.PyScript_Knob('readfrom', 'Read From Rendered', readfrom_src)
     link = nuke.Link_Knob('render')

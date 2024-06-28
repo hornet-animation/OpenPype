@@ -24,7 +24,8 @@ from openpype.lib.transcoding import (
     get_transcode_temp_directory,
 )
 from openpype.pipeline.publish import KnownPublishError
-
+from openpype.hpipe import nuke_fix
+path_fixer = nuke_fix.NameFix()
 
 class ExtractReview(pyblish.api.InstancePlugin):
     """Extracting Review mov file for Ftrack
@@ -373,7 +374,10 @@ class ExtractReview(pyblish.api.InstancePlugin):
                 "output": output_name,
                 "ext": output_ext
             })
-
+            # path_fixer = nuke_fix.NameFix()
+            # full_input_path = str(path_fixer.fix_baking(temp_data["full_input_path"], 'sRGB'))
+            # temp_data["full_input_path"] = full_input_path
+            self.log.debug("temp_data: {}".format(temp_data))
             try:  # temporary until oiiotool is supported cross platform
                 ffmpeg_args = self._ffmpeg_arguments(
                     output_def, instance, new_repre, temp_data, fill_data
@@ -660,7 +664,11 @@ class ExtractReview(pyblish.api.InstancePlugin):
             ffmpeg_output_args.extend([
                 "-frames:v", str(output_frames_len)
             ])
-
+        # full_input_path = str(path_fixer.fix_baking(temp_data["full_input_path"], 'sRGB'))
+        # if os.path.exists(temp_data["full_input_path"].replace('.baking_rec709.mov','sRGB.mov')):
+        full_input_path = temp_data["full_input_path"].replace('.baking_rec709.mov','.baking_sRGB.mov')
+        self.log.info('ExtractReview full_input_path {}'.format(full_input_path))
+        temp_data["full_input_path"] = full_input_path
         # Add video/image input path
         ffmpeg_input_args.extend([
             "-i", path_to_subprocess_arg(temp_data["full_input_path"])
@@ -719,11 +727,15 @@ class ExtractReview(pyblish.api.InstancePlugin):
         # Add argument to override output file
         ffmpeg_output_args.append("-y")
 
+        self.log.info('ExtractReview temp_data["full_output_path"] {}'.format(temp_data["full_output_path"]))
+        full_output_path = str(path_fixer.fix_baking(temp_data["full_output_path"], 'proxy'))
+        self.log.info('ExtractReview full_output_path {}'.format(full_output_path))
+        temp_data["full_output_path"] = full_output_path
         # NOTE This must be latest added item to output arguments.
         ffmpeg_output_args.append(
             path_to_subprocess_arg(temp_data["full_output_path"])
         )
-
+        self.log.info('extract_review temp_data {}'.format(temp_data))
         return self.ffmpeg_full_args(
             ffmpeg_input_args,
             ffmpeg_video_filters,
@@ -794,8 +806,10 @@ class ExtractReview(pyblish.api.InstancePlugin):
         all_args.extend(input_args)
         if video_filters:
             all_args.append("-filter:v")
-            all_args.append("\"{}\"".format(",".join(video_filters)))
-
+            all_args.append("\"{}\"".format(",".join(["format=yuv422p"])))
+            # disabled for rec709
+            # all_args.append("\"{}\"".format(",".join(video_filters)))
+            # self.log.info('video_filters {}'.format(video_filters))
         if audio_filters:
             all_args.append("-filter:a")
             all_args.append("\"{}\"".format(",".join(audio_filters)))
@@ -963,10 +977,12 @@ class ExtractReview(pyblish.api.InstancePlugin):
 
         # Store stagingDir to representaion
         new_repre["stagingDir"] = dst_staging_dir
-
+        path_fixer = nuke_fix.NameFix()
+        full_input_path = str(path_fixer.fix_baking(full_input_path, 'sRGB'))
         # Store paths to temp data
         temp_data["full_input_path"] = full_input_path
         temp_data["full_input_path_single_file"] = full_input_path_single_file
+        full_output_path = str(path_fixer.fix_baking(full_output_path, 'proxy'))
         temp_data["full_output_path"] = full_output_path
 
         # Store information about output

@@ -41,7 +41,7 @@ from .pipeline import (
     list_instances,
     remove_instance
 )
-
+from openpype.hpipe import nuke_fix
 
 def _collect_and_cache_nodes(creator):
     key = "openpype.nuke.nodes"
@@ -621,6 +621,9 @@ class ExporterReview(object):
                                                Defaults to None.
         """
         add_tags = tags or []
+        self.file = self.file.replace('.baking.','.baking_rec709.')
+        # self.file = self.file
+        self.log.info('self.file {}'.format(self.file))
         repre = {
             "name": self.name,
             "ext": self.ext,
@@ -739,10 +742,16 @@ class ExporterReviewLut(ExporterReview):
             if not self.viewer_lut_raw:
                 # OCIODisplay
                 dag_node = nuke.createNode("OCIODisplay")
+                # dag_node["view"].setValue('Rec.709') # force updated for rec 709
+
+                dag_node["view"].setValue('sRGB')
+                dag_node["colorspace"].setValue('Output - sRGB')
+
                 # connect
                 dag_node.setInput(0, self.previous_node)
                 self._temp_nodes.append(dag_node)
                 self.previous_node = dag_node
+                self.log.debug("OCIODisplay view {}".format(dag_node["view"].value()))
                 self.log.debug(
                     "OCIODisplay...   `{}`".format(self._temp_nodes))
 
@@ -838,6 +847,7 @@ class ExporterReviewMov(ExporterReview):
             # save file to the path
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
+            self.log.info('Current file : {}'.format(self.instance.context.data["currentFile"]))
             shutil.copyfile(self.instance.context.data["currentFile"], path)
 
         self.log.info("Nodes exported...")
@@ -947,6 +957,17 @@ class ExporterReviewMov(ExporterReview):
             if not self.viewer_lut_raw:
                 # OCIODisplay
                 dag_node = nuke.createNode("OCIODisplay")
+                dag_node["view"].setValue('Rec.709')
+                if kwargs.get('proxy_color'):
+                    reformat_node = nuke.createNode("Reformat")
+                    reformat_node['type'].setValue(2)
+                    attr = reformat_node['scale']
+                    attr.setAnimated()
+                    reformat_node['scale'].setValue(1)
+                    dag_node_srgb = nuke.createNode("OCIODisplay")
+                    dag_node_srgb["view"].setValue('sRGB')
+                    # dag_node_srgb["colorspace"].setValue('Output - sRGB')
+                    dag_node_srgb["colorspace"].setValue('scene_linear')
 
                 # assign display
                 display, viewer = get_viewer_config_from_string(
@@ -955,34 +976,94 @@ class ExporterReviewMov(ExporterReview):
                 if display:
                     dag_node["display"].setValue(display)
 
-                # assign viewer
-                dag_node["view"].setValue(viewer)
 
+                # assign viewer
+                # dag_node["view"].setValue(viewer)
+                self.log.debug("OCIODisplay: {}".format(dag_node["view"].value()))
                 self._connect_to_above_nodes(dag_node, subset, "OCIODisplay...   `{}`")
+                if kwargs.get('proxy_color'):
+                    reformat_node.setInput(0, r_node)
+                    dag_node_srgb.setInput(0, reformat_node)
+                # dag_node["view"].setValue('Rec.709') # force updated for rec 709
+                # dag_node["view"].setValue(21)
+                nuke.scriptSave()
         # Write node
+        path_fixer = nuke_fix.NameFix()
         write_node = nuke.createNode("Write")
-        self.log.debug("Path: {}".format(self.path))
-        write_node["file"].setValue(str(self.path))
+        new_path = str(path_fixer.fix_baking(str(self.path), 'rec709'))
+        self.log.debug("Path: {}".format(new_path))
+        write_node["file"].setValue(new_path)
         write_node["file_type"].setValue(str(self.ext))
+
+        if kwargs.get('proxy_color'):
+            srfb_file = str(path_fixer.fix_baking(str(self.path), 'sRGB'))
+            write_node_srgb = nuke.createNode("Write")
+            self.log.debug("Path: {}".format(srfb_file))
+            write_node_srgb["file"].setValue(srfb_file)
+            write_node_srgb["file_type"].setValue(str(self.ext))
 
         # Knobs `meta_codec` and `mov64_codec` are not available on centos.
         # TODO shouldn't this come from settings on outputs?
+        # write node settings for nuke
         try:
-            write_node["meta_codec"].setValue("ap4h")
+            # write_node["meta_codec"].setValue("ap4h")
+            write_node["colorspace"].setValue("Output - Rec.709")
+            write_node["meta_codec"].setValue("apch")
+            write_node["mov64_codec"].setValue('appr')
+            write_node["mov_prores_codec_profile"].setValue('ProRes 4:2:2 HQ 10-bit')
+            if kwargs.get('proxy_color'):
+                write_node_srgb['colorspace'].setValue('Output - sRGB')
+                write_node_srgb["mov64_codec"].setValue('h264')
+
         except Exception:
             self.log.info("`meta_codec` knob was not found")
 
+        # write node settings for nuke
         try:
-            write_node["mov64_codec"].setValue("ap4h")
+            # write_node["mov64_codec"].setValue("ap4h")
+            write_node["mov64_codec"].setValue('appr')
             write_node["mov64_fps"].setValue(float(fps))
+            write_node["mov_prores_codec_profile"].setValue('ProRes 4:2:2 HQ 10-bit')
+            if kwargs.get('proxy_color'):
+                write_node_srgb['mov64_codec'].setValue('h264')
+                write_node_srgb['file_type'].setValue('mov')
+                write_node_srgb["mov64_fps"].setValue(float(fps))
+                write_node_srgb.setInput(0, dag_node_srgb)
         except Exception:
             self.log.info("`mov64_codec` knob was not found")
 
+        # write node settings for nukeX
+        try:
+            # write_node["mov64_codec"].setValue("ap4h")
+            write_node["mov32_codec"].setValue('appr')
+            write_node["mov32_fps"].setValue(float(fps))
+            write_node["meta_codec"].setValue('apch')
+            if kwargs.get('proxy_color'):
+                write_node_srgb['meta_codec'].setValue('avc1')
+                write_node_srgb['file_type'].setValue('mov')
+                write_node_srgb["mov32_fps"].setValue(float(fps))
+                write_node_srgb.setInput(0, dag_node_srgb)
+        except Exception:
+            self.log.info("`mov32_codec` knob was not found")
+
         write_node["mov64_write_timecode"].setValue(1)
         write_node["raw"].setValue(1)
+        if kwargs.get('proxy_color'):
+            write_node_srgb["mov64_write_timecode"].setValue(1)
+            write_node_srgb["raw"].setValue(1)
         # connect
+        # write_node["mov64_codec"].setValue('appr')
+        # write_node["mov_prores_codec_profile"].setValue('ProRes 4:2:2 HQ 10-bit')
+        if kwargs.get('proxy_color'):
+            write_node_srgb['colorspace'].setValue('Output - sRGB')
+            write_node_srgb['mov64_codec'].setValue('h264')
         write_node.setInput(0, self.previous_node)
         self._temp_nodes[subset].append(write_node)
+        if kwargs.get('proxy_color'):
+            self._temp_nodes[subset].append(reformat_node)
+            self._temp_nodes[subset].append(dag_node_srgb)
+            self._temp_nodes[subset].append(write_node_srgb)
+
         self.log.debug("Write...   `{}`".format(self._temp_nodes[subset]))
         # ---------- end nodes creation
 
@@ -990,20 +1071,39 @@ class ExporterReviewMov(ExporterReview):
         if self.publish_on_farm:
             nuke.scriptSave()
             path_nk = self.save_file()
-            self.data.update({
-                "bakeScriptPath": path_nk,
-                "bakeWriteNodeName": write_node.name(),
-                "bakeRenderPath": self.path
-            })
+            self.log.info("Nuke file path :{}".format(path_nk))
+            if kwargs.get('proxy_color'):
+                write_list = []
+                write_list.append(write_node.name())
+                write_list.append(write_node_srgb.name())
+                self.data.update({
+                    "bakeScriptPath": path_nk,
+                    "bakeWriteNodeName": write_list,
+                    "bakeRenderPath": self.path
+                })
+            else:
+                self.data.update({
+                    "bakeScriptPath": path_nk,
+                    "bakeWriteNodeName": write_node.name(),
+                    "bakeRenderPath": self.path
+                })
         else:
             self.render(write_node.name())
 
         # ---------- generate representation data
-        self.get_representation_data(
-            tags=["review", "delete"] + add_tags,
-            custom_tags=add_custom_tags,
-            range=True
-        )
+        # This is modified to copy hi-res mov along with the publish when review is on for use existing frames on farm mode.
+        if kwargs.get('hrender_target') == 'a_frames_farm':
+            self.get_representation_data(
+                tags=["review"] ,
+                custom_tags=add_custom_tags,
+                range=True
+            )
+        else:
+            self.get_representation_data(
+                tags=["review", "delete"] + add_tags,
+                custom_tags=add_custom_tags,
+                range=True
+            )
 
         self.log.debug("Representation...   `{}`".format(self.data))
 
@@ -1015,10 +1115,14 @@ class ExporterReviewMov(ExporterReview):
     def _shift_to_previous_node_and_temp(self, subset, node, message):
         self._temp_nodes[subset].append(node)
         self.previous_node = node
+        if node.Class() == "OCIODisplay":
+            self.log.info("view {}".format(node["view"].value()))
         self.log.debug(message.format(self._temp_nodes[subset]))
 
     def _connect_to_above_nodes(self, node, subset, message):
         node.setInput(0, self.previous_node)
+        if node.Class() == "OCIODisplay":
+            self.log.info("view {}".format(node["view"].value()))
         self._shift_to_previous_node_and_temp(subset, node, message)
 
 

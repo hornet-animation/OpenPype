@@ -1,4 +1,3 @@
-
 class NameFix:
     def fix_baking(self, file_path, color_space):
         if color_space.lower() == 'rec709':

@@ -86,7 +86,6 @@ class CollectNukeWrites(pyblish.api.InstancePlugin,
                 "stagingDir": output_dir,
                 "tags": []
             }
-
             # get file path knob
             node_file_knob = write_node["file"]
             # list file paths based on input frames

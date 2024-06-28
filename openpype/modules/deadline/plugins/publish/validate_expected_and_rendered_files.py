@@ -5,7 +5,7 @@ import pyblish.api
 
 from openpype.lib import collect_frames
 from openpype_modules.deadline.abstract_submit_deadline import requests_get
-
+from openpype.hpipe import nuke_fix
 
 class ValidateExpectedFiles(pyblish.api.InstancePlugin):
     """Compare rendered and expected files"""
@@ -206,11 +206,14 @@ class ValidateExpectedFiles(pyblish.api.InstancePlugin):
 
         """
         expected_files = set()
-
+        path_fixer = nuke_fix.NameFix()
         files = repre["files"]
         if not isinstance(files, list):
             files = [files]
 
         for file_name in files:
+            if '.baking.' in file_name:
+                file_name = path_fixer.fix_baking(file_name, 'rec709')
             expected_files.add(file_name)
+        self.log.info('expected_files {}'.format(expected_files))
         return expected_files

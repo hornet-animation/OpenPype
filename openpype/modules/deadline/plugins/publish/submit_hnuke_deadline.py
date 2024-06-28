@@ -18,7 +18,7 @@ from openpype.lib import (
     BoolDef,
     NumberDef
 )
-
+from openpype.hpipe import nuke_fix
 
 class NukeSubmitDeadline(pyblish.api.InstancePlugin,
                          OpenPypePyblishPluginMixin):
@@ -179,14 +179,25 @@ class NukeSubmitDeadline(pyblish.api.InstancePlugin,
 
                 # NOTE hornet update on use existing frames on farm
                 if instance.data.get("render_target") == "a_frames_farm":
-                    resp = self.payload_submit(
-                        instance,
-                        script_path,
-                        render_path,
-                        exe_node_name,
-                        submit_frame_start,
-                        submit_frame_end,
-                    )
+                    if isinstance(exe_node_name,list): # rec709 update
+                        for each_node in exe_node_name:
+                            resp = self.payload_submit(
+                                instance,
+                                script_path,
+                                render_path,
+                                each_node,
+                                submit_frame_start,
+                                submit_frame_end,
+                            )
+                    else:
+                        resp = self.payload_submit(
+                            instance,
+                            script_path,
+                            render_path,
+                            exe_node_name,
+                            submit_frame_start,
+                            submit_frame_end,
+                        )
                 else:
                     resp = self.payload_submit(
                         instance,
@@ -245,6 +256,10 @@ class NukeSubmitDeadline(pyblish.api.InstancePlugin,
         jobname = "%s - %s" % (batch_name, instance.name)
         if is_in_tests():
             batch_name += datetime.now().strftime("%d%m%Y%H%M%S")
+
+        if 'baking' in jobname:
+            path_fixer = nuke_fix.NameFix()
+            render_path = str(path_fixer.fix_baking(render_path, 'sRGB'))
 
         output_filename_0 = self.preview_fname(render_path)
 
